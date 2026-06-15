@@ -4,6 +4,7 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <time.h>
+#include <esp_task_wdt.h>
 
 // I2S buffer for audio samples
 int16_t audioBuffer[BUFFER_SIZE];
@@ -209,12 +210,20 @@ void setup() {
   Serial.println("\n=== Noise Logger Starting ===");
   Serial.println("Device ID: " DEVICE_ID);
 
+  // Initialize watchdog timer (30 second timeout)
+  esp_task_wdt_init(30, true);
+  esp_task_wdt_add(NULL);
+  Serial.println("Watchdog timer initialized (30s timeout)");
+
   initI2S();
   initWiFi();
   initTime();
 }
 
 void loop() {
+  // Reset watchdog timer
+  esp_task_wdt_reset();
+
   // Read audio samples from I2S
   esp_err_t result = i2s_read(I2S_NUM_0, audioBuffer, sizeof(audioBuffer), &bytesRead, portMAX_DELAY);
 
@@ -230,6 +239,12 @@ void loop() {
 
     // Process noise event detection
     processNoiseEvent(dbSPL);
+  }
+
+  // Check WiFi connection and reconnect if needed
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi disconnected, reconnecting...");
+    WiFi.reconnect();
   }
 
   delay(100); // Update 10 times per second
