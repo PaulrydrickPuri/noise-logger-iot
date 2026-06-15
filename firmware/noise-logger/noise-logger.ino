@@ -3,6 +3,7 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include <time.h>
 
 // I2S buffer for audio samples
 int16_t audioBuffer[BUFFER_SIZE];
@@ -18,6 +19,11 @@ struct NoiseEvent {
 
 NoiseEvent currentEvent = {0, 0, 0, false};
 int eventCounter = 0;
+
+// NTP time settings
+const char* ntpServer = "pool.ntp.org";
+const long gmtOffset_sec = 8 * 3600; // Malaysia is UTC+8
+const int daylightOffset_sec = 0;
 
 void initI2S() {
   // I2S configuration
@@ -80,6 +86,18 @@ void initWiFi() {
   }
 }
 
+void initTime() {
+  Serial.println("Initializing NTP time...");
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    Serial.println("Failed to obtain time");
+    return;
+  }
+  Serial.println("Time synchronized via NTP");
+}
+
 float calculateRMS(int16_t* samples, size_t count) {
   float sum = 0;
   for (size_t i = 0; i < count; i++) {
@@ -91,6 +109,50 @@ float calculateRMS(int16_t* samples, size_t count) {
 float calculateDB(float rms) {
   if (rms < 1.0) rms = 1.0; // Prevent log(0)
   return 20.0 * log10(rms * CALIBRATION_FACTOR);
+}
+
+void sendEventToServer(float peakDB, unsigned long durationMs) {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi not connected, cannot send event");
+    return;
+  }
+
+  // Get current time
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    Serial.println("Failed to get time, using millis timestamp");
+    // Fallback: use millis
+    char timestamp[32];
+    snprintf(timestamp, sizeof(timestamp), "%lu", millis());
+  }
+
+  char timestamp[64];
+  strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%S", &timeinfo);
+
+  // Create JSON payload
+  StaticJsonDocument<256> doc;
+  doc["device_id"] = DEVICE_ID;
+  doc["timestamp"] = timestamp;
+  doc["peak_db"] = peakDB;
+  doc["duration_sec"] = durationMs / 1000.0;
+
+  String payload;
+  serializeJson(doc, payload);
+
+  // Send HTTP POST
+  HTTPClient http;
+  http.begin(SERVER_URL);
+  http.addHeader("Content-Type", "application/json");
+
+  int httpResponseCode = http.POST(payload);
+
+  if (httpResponseCode > 0) {
+    Serial.printf("Event sent to server. Response: %d\n", httpResponseCode);
+  } else {
+    Serial.printf("Error sending event: %s\n", http.errorToString(httpResponseCode).c_str());
+  }
+
+  http.end();
 }
 
 void processNoiseEvent(float dbSPL) {
@@ -126,7 +188,8 @@ void processNoiseEvent(float dbSPL) {
         Serial.printf("Timestamp: %lu\n", currentEvent.timestamp);
         Serial.println("========================");
 
-        // TODO: Send to server (Task 8)
+        // Send to server
+        sendEventToServer(currentEvent.peakDB, currentEvent.durationMs);
       } else {
         Serial.printf("Event too short (%lu ms), ignored\n", currentEvent.durationMs);
       }
@@ -148,6 +211,7 @@ void setup() {
 
   initI2S();
   initWiFi();
+  initTime();
 }
 
 void loop() {
