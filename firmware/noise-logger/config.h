@@ -21,12 +21,11 @@
 #define CHANNEL_NUM 1               // Mono
 #define BUFFER_SIZE 1024            // I2S buffer size in samples
 
-// WiFi Settings
-#define WIFI_SSID "Chevngko"
-#define WIFI_PASSWORD "Summer1180"
+// Include secrets (WiFi credentials and server URL)
+// secrets.h is in .gitignore - create it from secrets.h.template
+#include "secrets.h"
 
-// Server Settings
-#define SERVER_URL "http://192.168.100.18:5001/api/events"
+// Device ID
 #define DEVICE_ID "noise-logger-001"
 
 // Display Settings (when OLED available)
