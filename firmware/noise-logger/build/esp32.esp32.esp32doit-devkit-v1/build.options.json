@@ -1,0 +1,9 @@
+{
+  "additionalFiles": "../..",
+  "compiler.optimization_flags": "-Os",
+  "customBuildProperties": "",
+  "fqbn": "esp32:esp32:esp32doit-devkit-v1",
+  "hardwareFolders": "/Users/paulrydrickpuri/Library/Arduino15/packages/esp32/hardware/esp32/3.3.10,/Users/paulrydrickpuri/Library/Arduino15/packages/esp32/hardware/esp32/3.3.10",
+  "otherLibrariesFolders": "/Users/paulrydrickpuri/Documents/Arduino/libraries",
+  "sketchLocation": "/Users/paulrydrickpuri/Documents/noise-logger/firmware/noise-logger"
+}

@@ -131,7 +131,7 @@ void sendEventToServer(float peakDB, unsigned long durationMs) {
   strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%S", &timeinfo);
 
   // Create JSON payload
-  StaticJsonDocument<256> doc;
+  JsonDocument doc;
   doc["device_id"] = DEVICE_ID;
   doc["timestamp"] = timestamp;
   doc["peak_db"] = peakDB;
@@ -210,8 +210,13 @@ void setup() {
   Serial.println("\n=== Noise Logger Starting ===");
   Serial.println("Device ID: " DEVICE_ID);
 
-  // Initialize watchdog timer (30 second timeout)
-  esp_task_wdt_init(30, true);
+  // Initialize watchdog timer (new API for ESP32 Arduino 3.x)
+  esp_task_wdt_config_t wdt_config = {
+    .timeout_ms = 30000,
+    .idle_core_mask = (1 << portNUM_PROCESSORS) - 1,
+    .trigger_panic = true
+  };
+  esp_task_wdt_init(&wdt_config);
   esp_task_wdt_add(NULL);
   Serial.println("Watchdog timer initialized (30s timeout)");
 
