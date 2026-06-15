@@ -1,10 +1,23 @@
 #include "config.h"
 #include <driver/i2s.h>
 #include <WiFi.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
 
 // I2S buffer for audio samples
 int16_t audioBuffer[BUFFER_SIZE];
 size_t bytesRead = 0;
+
+// Noise event tracking
+struct NoiseEvent {
+  unsigned long timestamp;
+  float peakDB;
+  unsigned long durationMs;
+  bool active;
+};
+
+NoiseEvent currentEvent = {0, 0, 0, false};
+int eventCounter = 0;
 
 void initI2S() {
   // I2S configuration
@@ -80,6 +93,53 @@ float calculateDB(float rms) {
   return 20.0 * log10(rms * CALIBRATION_FACTOR);
 }
 
+void processNoiseEvent(float dbSPL) {
+  unsigned long currentTime = millis();
+
+  // Check if dB exceeds threshold
+  if (dbSPL > DB_THRESHOLD) {
+    if (!currentEvent.active) {
+      // Start new event
+      currentEvent.active = true;
+      currentEvent.timestamp = currentTime;
+      currentEvent.peakDB = dbSPL;
+      currentEvent.durationMs = 0;
+      Serial.printf("Noise event started: %.1f dB\n", dbSPL);
+    } else {
+      // Update ongoing event
+      currentEvent.durationMs = currentTime - currentEvent.timestamp;
+      if (dbSPL > currentEvent.peakDB) {
+        currentEvent.peakDB = dbSPL;
+      }
+    }
+  } else {
+    // dB below threshold - check if we have an active event
+    if (currentEvent.active) {
+      currentEvent.durationMs = currentTime - currentEvent.timestamp;
+
+      // Only log if event lasted long enough (debouncing)
+      if (currentEvent.durationMs >= EVENT_DURATION_MS) {
+        eventCounter++;
+        Serial.printf("=== NOISE EVENT #%d ===\n", eventCounter);
+        Serial.printf("Peak dB: %.1f\n", currentEvent.peakDB);
+        Serial.printf("Duration: %lu ms\n", currentEvent.durationMs);
+        Serial.printf("Timestamp: %lu\n", currentEvent.timestamp);
+        Serial.println("========================");
+
+        // TODO: Send to server (Task 8)
+      } else {
+        Serial.printf("Event too short (%lu ms), ignored\n", currentEvent.durationMs);
+      }
+
+      // Reset event
+      currentEvent.active = false;
+      currentEvent.timestamp = 0;
+      currentEvent.peakDB = 0;
+      currentEvent.durationMs = 0;
+    }
+  }
+}
+
 void setup() {
   Serial.begin(115200);
   delay(1000);
@@ -102,7 +162,10 @@ void loop() {
     float dbSPL = calculateDB(rms);
 
     // Print to Serial Monitor
-    Serial.printf("dB: %.1f (RMS: %.1f, Samples: %d)\n", dbSPL, rms, samplesRead);
+    Serial.printf("dB: %.1f (RMS: %.1f)\n", dbSPL, rms);
+
+    // Process noise event detection
+    processNoiseEvent(dbSPL);
   }
 
   delay(100); // Update 10 times per second
