@@ -22,11 +22,11 @@
 #define BUFFER_SIZE 1024            // I2S buffer size in samples
 
 // WiFi Settings
-#define WIFI_SSID "YOUR_WIFI_SSID"
-#define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
+#define WIFI_SSID "Chevngko"
+#define WIFI_PASSWORD "Summer1180"
 
 // Server Settings
-#define SERVER_URL "http://192.168.1.100:5000/api/events"
+#define SERVER_URL "http://192.168.100.18:5000/api/events"
 #define DEVICE_ID "noise-logger-001"
 
 // Display Settings (when OLED available)
