@@ -206,7 +206,7 @@ class NoiseReport(FPDF):
             self.add_page()
             self.set_font('Arial', '', 14)
             self.cell(0, 10, 'No noise events recorded in the selected period.', 0, 1, 'C')
-            return self.output(dest='S').encode('latin-1')
+            return self.output(dest='S')
 
         self.add_cover_page()
         self.add_summary_table()
@@ -215,4 +215,4 @@ class NoiseReport(FPDF):
         self.add_legal_reference()
         self.add_footer_info()
 
-        return self.output(dest='S').encode('latin-1')
+        return self.output(dest='S')

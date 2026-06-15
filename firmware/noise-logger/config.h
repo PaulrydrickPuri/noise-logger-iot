@@ -26,7 +26,7 @@
 #define WIFI_PASSWORD "Summer1180"
 
 // Server Settings
-#define SERVER_URL "http://192.168.100.18:5000/api/events"
+#define SERVER_URL "http://192.168.100.18:5001/api/events"
 #define DEVICE_ID "noise-logger-001"
 
 // Display Settings (when OLED available)

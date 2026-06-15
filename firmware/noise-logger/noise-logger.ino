@@ -76,6 +76,7 @@ void initWiFi() {
     delay(500);
     Serial.print(".");
     attempts++;
+    esp_task_wdt_reset(); // Reset watchdog during WiFi connection
   }
 
   if (WiFi.status() == WL_CONNECTED) {
@@ -92,11 +93,19 @@ void initTime() {
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
   struct tm timeinfo;
-  if (!getLocalTime(&timeinfo)) {
-    Serial.println("Failed to obtain time");
-    return;
+  int attempts = 0;
+  while (!getLocalTime(&timeinfo) && attempts < 10) {
+    delay(500);
+    Serial.print(".");
+    attempts++;
+    esp_task_wdt_reset(); // Reset watchdog during NTP sync
   }
-  Serial.println("Time synchronized via NTP");
+
+  if (getLocalTime(&timeinfo)) {
+    Serial.println("\nTime synchronized via NTP");
+  } else {
+    Serial.println("\nFailed to obtain time, continuing without NTP");
+  }
 }
 
 float calculateRMS(int16_t* samples, size_t count) {
