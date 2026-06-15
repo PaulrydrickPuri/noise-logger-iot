@@ -55,16 +55,24 @@ All components are pre-soldered — no soldering required.
    - Note: I2S driver is built-in with ESP32 Arduino core
 
 ### Configure Before Flashing
-**IMPORTANT:** Edit `firmware/noise-logger/config.h` before flashing:
+**IMPORTANT:** Create your secrets file and edit it before flashing:
 
-```cpp
-// Update these with your actual WiFi credentials
-#define WIFI_SSID "YOUR_WIFI_SSID"
-#define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
+1. **Copy the template:**
+   ```bash
+   cp firmware/noise-logger/secrets.h.template firmware/noise-logger/secrets.h
+   ```
 
-// Update this with your laptop's IP address (see "Finding Your IP" below)
-#define SERVER_URL "http://192.168.1.100:5000/api/events"
-```
+2. **Edit `firmware/noise-logger/secrets.h`:**
+   ```cpp
+   // Update these with your actual WiFi credentials
+   #define WIFI_SSID "YOUR_WIFI_SSID"
+   #define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
+   
+   // Update this with your laptop's IP address (see "Finding Your IP" below)
+   #define SERVER_URL "http://192.168.1.100:5001/api/events"
+   ```
+
+**Note:** `secrets.h` is in `.gitignore` and will NOT be committed to git, keeping your credentials safe.
 
 **Finding your laptop's IP address:**
 - **Mac/Linux:** Open Terminal → type `ifconfig | grep "inet "` → look for `192.168.x.x`
@@ -122,11 +130,11 @@ Database initialized
  * Serving Flask app 'app'
  * Debug mode: on
  * Running on all addresses (0.0.0.0)
- * Running on http://127.0.0.1:5000
- * Running on http://192.168.1.100:5000
+ * Running on http://127.0.0.1:5001
+ * Running on http://192.168.1.100:5001
 ```
 
-**Important:** The server must run on the same WiFi network as your ESP32. Use the IP address shown (e.g., `192.168.1.100`) in your ESP32's `config.h`.
+**Important:** The server must run on the same WiFi network as your ESP32. Use the IP address shown (e.g., `192.168.1.100`) in your ESP32's `secrets.h`.
 
 ### Keep Server Running 24/7
 For continuous monitoring, keep the server running on a laptop or Raspberry Pi:
@@ -135,7 +143,7 @@ For continuous monitoring, keep the server running on a laptop or Raspberry Pi:
 - **Advanced:** Use `systemd` service or Docker for production deployment
 
 ### Web Dashboard
-Open `http://localhost:5000` (or your laptop's IP) in your browser to see:
+Open `http://localhost:5001` (or your laptop's IP) in your browser to see:
 - **Live dB gauge** — Current noise level (updates every 5 seconds)
 - **Statistics** — Total events, average dB, peak dB, total duration
 - **Event timeline chart** — Bar chart showing all noise events over time
@@ -151,10 +159,10 @@ Open `http://localhost:5000` (or your laptop's IP) in your browser to see:
 **From command line:**
 ```bash
 # All events
-curl http://localhost:5000/api/report -o noise_report_all.pdf
+curl http://localhost:5001/api/report -o noise_report_all.pdf
 
 # Specific date range
-curl "http://localhost:5000/api/report?from=2024-01-01&to=2024-01-31" -o noise_report_jan2024.pdf
+curl "http://localhost:5001/api/report?from=2024-01-01&to=2024-01-31" -o noise_report_jan2024.pdf
 ```
 
 **The PDF includes:**
@@ -216,7 +224,7 @@ If you skip calibration, the device still works:
 
 ### Step 1: Initial Setup (One-Time)
 1. **Wire the components** following the Wiring Diagram above
-2. **Configure WiFi** in `config.h` (see Firmware Setup)
+2. **Configure WiFi** in `secrets.h` (see Firmware Setup)
 3. **Flash firmware** to ESP32 (see Firmware Setup)
 4. **Start the server** on your laptop (see Server Setup)
 5. **Verify connection** — ESP32 Serial Monitor should show "WiFi connected!"
@@ -257,7 +265,7 @@ If you skip calibration, the device still works:
 - Quiet background noise (20-30 dB)
 
 ### Step 4: Review Events
-1. **Open dashboard:** `http://localhost:5000` on your laptop
+1. **Open dashboard:** `http://localhost:5001` on your laptop
 2. **Check statistics:** See total events, average dB, peak dB
 3. **View timeline:** Bar chart shows when events occurred
 4. **Inspect details:** Table lists each event with timestamp and duration
@@ -280,16 +288,16 @@ When ready to file a complaint with JMB/MC:
 ### Troubleshooting
 
 **ESP32 won't connect to WiFi:**
-- Double-check SSID and password in `config.h` (case-sensitive)
+- Double-check SSID and password in `secrets.h` (case-sensitive)
 - Ensure laptop and ESP32 are on the same WiFi network (2.4 GHz, not 5 GHz guest network)
 - Move ESP32 closer to WiFi router
 - Check Serial Monitor for error messages
 
 **Events not appearing on dashboard:**
 - Verify server is running (`python app.py`)
-- Check `SERVER_URL` in `config.h` matches your laptop's IP address
-- Ensure firewall allows port 5000 (Mac: System Preferences → Security → Firewall → Allow incoming connections for Python)
-- Test manually: `curl http://YOUR_IP:5000/api/events`
+- Check `SERVER_URL` in `secrets.h` matches your laptop's IP address
+- Ensure firewall allows port 5001 (Mac: System Preferences → Security → Firewall → Allow incoming connections for Python)
+- Test manually: `curl http://YOUR_IP:5001/api/events`
 
 **False positives (logging normal sounds):**
 - Increase threshold in `config.h`: `#define DB_THRESHOLD 65.0` (instead of 55.0)
@@ -314,7 +322,9 @@ noise-logger/
 ├── firmware/
 │   └── noise-logger/
 │       ├── noise-logger.ino    # Main ESP32 firmware
-│       └── config.h            # Pin definitions and WiFi config
+│       ├── config.h            # Pin definitions and settings
+│       ├── secrets.h           # WiFi credentials (NOT committed, create from template)
+│       └── secrets.h.template  # Template for secrets.h
 ├── server/
 │   ├── app.py                  # Flask server
 │   ├── db.py                   # SQLite database operations
