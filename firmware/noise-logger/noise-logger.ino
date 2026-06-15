@@ -1,5 +1,6 @@
 #include "config.h"
 #include <driver/i2s.h>
+#include <WiFi.h>
 
 // I2S buffer for audio samples
 int16_t audioBuffer[BUFFER_SIZE];
@@ -45,6 +46,27 @@ void initI2S() {
   Serial.println("I2S initialized successfully");
 }
 
+void initWiFi() {
+  Serial.printf("Connecting to WiFi: %s", WIFI_SSID);
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED && attempts < 30) {
+    delay(500);
+    Serial.print(".");
+    attempts++;
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nWiFi connected!");
+    Serial.print("IP address: ");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println("\nFailed to connect to WiFi");
+  }
+}
+
 float calculateRMS(int16_t* samples, size_t count) {
   float sum = 0;
   for (size_t i = 0; i < count; i++) {
@@ -65,6 +87,7 @@ void setup() {
   Serial.println("Device ID: " DEVICE_ID);
 
   initI2S();
+  initWiFi();
 }
 
 void loop() {
