@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Noise Logger Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2c3e50;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            margin-bottom: 15px;
+            color: #34495e;
+            font-size: 1.2em;
+        }
+
+        .gauge-container {
+            text-align: center;
+            padding: 30px;
+        }
+
+        .gauge-value {
+            font-size: 4em;
+            font-weight: bold;
+            color: #3498db;
+        }
+
+        .gauge-label {
+            font-size: 1.2em;
+            color: #7f8c8d;
+            margin-top: 10px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-box {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .stat-label {
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        input[type="date"], button {
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        button:hover {
+            background: #2980b9;
+        }
+
+        button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #95a5a6;
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔊 Noise Logger Dashboard</h1>
+
+        <div class="card">
+            <h2>Current Noise Level</h2>
+            <div class="gauge-container">
+                <div class="gauge-value" id="currentDb">--</div>
+                <div class="gauge-label">dB SPL</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Statistics</h2>
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-value" id="totalEvents">0</div>
+                    <div class="stat-label">Total Events</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="avgDb">0</div>
+                    <div class="stat-label">Average dB</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="peakDb">0</div>
+                    <div class="stat-label">Peak dB</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="totalDuration">0</div>
+                    <div class="stat-label">Total Duration (s)</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Event Timeline</h2>
+            <div class="chart-container">
+                <canvas id="timelineChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Recent Events</h2>
+            <div class="controls">
+                <input type="date" id="fromDate" placeholder="From">
+                <input type="date" id="toDate" placeholder="To">
+                <button onclick="loadEvents()">Filter</button>
+                <button onclick="generateReport()">Generate PDF Report</button>
+            </div>
+            <div id="eventsTable">
+                <div class="no-data">Loading events...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let chart = null;
+
+        // Initialize chart
+        function initChart() {
+            const ctx = document.getElementById('timelineChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Peak dB',
+                        data: [],
+                        backgroundColor: 'rgba(52, 152, 219, 0.6)',
+                        borderColor: 'rgba(52, 152, 219, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'dB SPL'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update current dB reading
+        async function updateCurrentDb() {
+            try {
+                const response = await fetch('/api/latest');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.peak_db) {
+                        document.getElementById('currentDb').textContent = data.peak_db.toFixed(1);
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching latest event:', error);
+            }
+        }
+
+        // Update statistics
+        async function updateStats() {
+            try {
+                const response = await fetch('/api/stats');
+                if (response.ok) {
+                    const stats = await response.json();
+                    if (stats.total_events) {
+                        document.getElementById('totalEvents').textContent = stats.total_events;
+                        document.getElementById('avgDb').textContent = stats.avg_db.toFixed(1);
+                        document.getElementById('peakDb').textContent = stats.peak_db.toFixed(1);
+                        document.getElementById('totalDuration').textContent = stats.total_duration_sec;
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching stats:', error);
+            }
+        }
+
+        // Load and display events
+        async function loadEvents() {
+            const fromDate = document.getElementById('fromDate').value;
+            const toDate = document.getElementById('toDate').value;
+
+            let url = '/api/events?';
+            if (fromDate) url += `from=${fromDate}&`;
+            if (toDate) url += `to=${toDate}&`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+
+                // Update table
+                const tableDiv = document.getElementById('eventsTable');
+                if (data.events && data.events.length > 0) {
+                    let html = '<table><thead><tr>';
+                    html += '<th>Timestamp</th><th>Peak dB</th><th>Duration (s)</th><th>Device</th>';
+                    html += '</tr></thead><tbody>';
+
+                    data.events.forEach(event => {
+                        html += '<tr>';
+                        html += `<td>${event.timestamp}</td>`;
+                        html += `<td>${event.peak_db.toFixed(1)}</td>`;
+                        html += `<td>${event.duration_sec}</td>`;
+                        html += `<td>${event.device_id}</td>`;
+                        html += '</tr>';
+                    });
+
+                    html += '</tbody></table>';
+                    tableDiv.innerHTML = html;
+
+                    // Update chart
+                    const labels = data.events.map(e => e.timestamp.split('T')[1] || e.timestamp);
+                    const values = data.events.map(e => e.peak_db);
+
+                    chart.data.labels = labels;
+                    chart.data.datasets[0].data = values;
+                    chart.update();
+                } else {
+                    tableDiv.innerHTML = '<div class="no-data">No events recorded yet</div>';
+                    chart.data.labels = [];
+                    chart.data.datasets[0].data = [];
+                    chart.update();
+                }
+            } catch (error) {
+                console.error('Error loading events:', error);
+                document.getElementById('eventsTable').innerHTML = '<div class="no-data">Error loading events</div>';
+            }
+        }
+
+        // Generate PDF report
+        async function generateReport() {
+            const fromDate = document.getElementById('fromDate').value;
+            const toDate = document.getElementById('toDate').value;
+
+            let url = '/api/report?';
+            if (fromDate) url += `from=${fromDate}&`;
+            if (toDate) url += `to=${toDate}&`;
+
+            window.open(url, '_blank');
+        }
+
+        // Initialize
+        initChart();
+        loadEvents();
+        updateStats();
+
+        // Auto-refresh every 5 seconds
+        setInterval(() => {
+            updateCurrentDb();
+            updateStats();
+            loadEvents();
+        }, 5000);
+    </script>
+</body>
+</html>
