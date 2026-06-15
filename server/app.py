@@ -1,5 +1,7 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, send_file
 from db import init_db, add_event, get_events, get_latest_event, get_event_stats
+from report import NoiseReport
+import io
 
 app = Flask(__name__)
 
@@ -71,6 +73,28 @@ def event_stats():
         return jsonify(stats)
     else:
         return jsonify({"message": "No events recorded yet"}), 404
+
+@app.route("/api/report", methods=["GET"])
+def generate_report():
+    """Generate and download a PDF report."""
+    from_date = request.args.get("from")
+    to_date = request.args.get("to")
+
+    report = NoiseReport(from_date=from_date, to_date=to_date)
+    pdf_bytes = report.generate()
+
+    # Create filename with date range
+    if from_date and to_date:
+        filename = f"noise_report_{from_date}_to_{to_date}.pdf"
+    else:
+        filename = f"noise_report_all.pdf"
+
+    return send_file(
+        io.BytesIO(pdf_bytes),
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=filename
+    )
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
